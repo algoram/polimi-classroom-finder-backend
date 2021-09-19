@@ -2,7 +2,6 @@ const rp = require("request-promise");
 const cheerio = require("cheerio");
 const express = require("express");
 const app = express();
-const PORT = 3000;
 
 app.get("/", async (req, res) => {
 	const date = "20/9/2021";
@@ -93,6 +92,6 @@ app.get("/", async (req, res) => {
 	res.json(result);
 });
 
-app.listen(PORT, () => {
+app.listen(process.env.PORT || 3000, () => {
 	console.log(`Listening at http://localhost:${PORT}`);
 });
