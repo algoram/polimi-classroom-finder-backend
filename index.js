@@ -1,7 +1,10 @@
 const rp = require("request-promise");
 const cheerio = require("cheerio");
 const express = require("express");
+const cors = require("cors");
 const app = express();
+
+app.use(cors());
 
 const getTodayDate = () => {
 	const date = new Date();
@@ -10,10 +13,10 @@ const getTodayDate = () => {
 };
 
 app.get("/", async (req, res) => {
-	const date = req.query.date ?? getTodayDate();
+	const dateString = req.query.date ?? getTodayDate();
 
 	const getUrl = () => {
-		const dateArray = date.split("/");
+		const dateArray = dateString.split("/");
 
 		return (
 			"https://www7.ceda.polimi.it/spazi/spazi/controller/OccupazioniGiornoEsatto.do" +
@@ -98,6 +101,6 @@ app.get("/", async (req, res) => {
 	res.json(result);
 });
 
-app.listen(process.env.PORT || 3000, () => {
+app.listen(process.env.PORT || 5000, () => {
 	console.log(`Currently listening`);
 });
