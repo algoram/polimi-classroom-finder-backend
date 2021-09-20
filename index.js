@@ -3,8 +3,14 @@ const cheerio = require("cheerio");
 const express = require("express");
 const app = express();
 
+const getTodayDate = () => {
+	const date = new Date();
+
+	return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+};
+
 app.get("/", async (req, res) => {
-	const date = "20/9/2021";
+	const date = req.query.date ?? getTodayDate();
 
 	const getUrl = () => {
 		const dateArray = date.split("/");
