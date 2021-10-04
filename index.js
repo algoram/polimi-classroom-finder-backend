@@ -14,13 +14,14 @@ const getTodayDate = () => {
 
 app.get("/", async (req, res) => {
 	const dateString = req.query.date ?? getTodayDate();
+	const addressString = req.query.address ?? "MIA";
 
 	const getUrl = () => {
 		const dateArray = dateString.split("/");
 
 		return (
 			"https://www7.ceda.polimi.it/spazi/spazi/controller/OccupazioniGiornoEsatto.do" +
-			"?csic=MIA" +
+			`?csic=${addressString}` +
 			"&categoria=tutte" +
 			"&tipologia=tutte" +
 			`&giorno_day=${dateArray[0]}` +
