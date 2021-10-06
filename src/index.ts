@@ -1,7 +1,7 @@
-const rp = require("request-promise");
-const cheerio = require("cheerio");
-const express = require("express");
-const cors = require("cors");
+import rp from "request-promise";
+import cheerio from "cheerio";
+import express from "express";
+import cors from "cors";
 const app = express();
 
 app.use(cors());
@@ -13,7 +13,7 @@ const getTodayDate = () => {
 };
 
 app.get("/", async (req, res) => {
-	const dateString = req.query.date ?? getTodayDate();
+	const dateString = req.query.date?.toString() ?? getTodayDate();
 	const addressString = req.query.address ?? "MIA";
 
 	const getUrl = () => {
@@ -41,7 +41,11 @@ app.get("/", async (req, res) => {
 
 	const rows = $("tr.normalRow");
 
-	const result = [];
+	const result: {
+		classroom: string;
+		hours: number[];
+		freeHours?: number;
+	}[] = [];
 
 	rows.each((i, tr) => {
 		if (i != 0 && i != 1) {
@@ -56,11 +60,17 @@ app.get("/", async (req, res) => {
 				.children()
 				.each((j, td) => {
 					if ($(td).hasClass("slot")) {
-						if (free) {
-							freeHours.push(hours);
-							hours = $(td).attr("colspan") / 4;
+						if (typeof $(td).attr("colspan") != "undefined") {
+							const colspan: number = parseInt($(td).attr("colspan") ?? "");
+
+							if (free) {
+								freeHours.push(hours);
+								hours = colspan / 4;
+							} else {
+								hours += colspan / 4;
+							}
 						} else {
-							hours += $(td).attr("colspan") / 4;
+							throw "Colspan not found, wrong website format";
 						}
 
 						free = false;
@@ -97,7 +107,7 @@ app.get("/", async (req, res) => {
 		val.freeHours = freeHours;
 	});
 
-	result.sort((a, b) => b.freeHours - a.freeHours);
+	result.sort((a, b) => b.freeHours! - a.freeHours!);
 
 	res.json(result);
 });
@@ -105,3 +115,5 @@ app.get("/", async (req, res) => {
 app.listen(process.env.PORT || 5000, () => {
 	console.log(`Currently listening`);
 });
+
+console.log("hey");
