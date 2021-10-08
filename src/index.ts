@@ -2,7 +2,20 @@ import rp from "request-promise";
 import cheerio from "cheerio";
 import express from "express";
 import cors from "cors";
+import Redis from "ioredis";
 const app = express();
+
+const cacheTimeoutSeconds = 900;
+
+type ReturnObjectType = Classroom[];
+
+type Classroom = {
+	classroom: string;
+	hours: number[];
+	freeHours?: number;
+};
+
+const redisClient = new Redis(process.env.REDIS_URL);
 
 app.use(cors());
 
@@ -12,16 +25,13 @@ const getTodayDate = () => {
 	return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
 };
 
-app.get("/", async (req, res) => {
-	const dateString = req.query.date?.toString() ?? getTodayDate();
-	const addressString = req.query.address ?? "MIA";
-
+const elaboratePolimiWebsite = async (address: string, date: string) => {
 	const getUrl = () => {
-		const dateArray = dateString.split("/");
+		const dateArray = date.split("/");
 
 		return (
 			"https://www7.ceda.polimi.it/spazi/spazi/controller/OccupazioniGiornoEsatto.do" +
-			`?csic=${addressString}` +
+			`?csic=${address}` +
 			"&categoria=tutte" +
 			"&tipologia=tutte" +
 			`&giorno_day=${dateArray[0]}` +
@@ -41,11 +51,7 @@ app.get("/", async (req, res) => {
 
 	const rows = $("tr.normalRow");
 
-	const result: {
-		classroom: string;
-		hours: number[];
-		freeHours?: number;
-	}[] = [];
+	const result: ReturnObjectType = [];
 
 	rows.each((i, tr) => {
 		if (i != 0 && i != 1) {
@@ -109,7 +115,30 @@ app.get("/", async (req, res) => {
 
 	result.sort((a, b) => b.freeHours! - a.freeHours!);
 
-	res.json(result);
+	return result;
+};
+
+const redisKeyGenerator = (address: string, date: string) =>
+	`${address}-${date}`;
+
+app.get("/", async (req, res) => {
+	const date = req.query.date?.toString() ?? getTodayDate();
+	const address = req.query.address?.toString() ?? "MIA";
+
+	if (await redisClient.exists(redisKeyGenerator(address, date))) {
+		res.type("json");
+		res.send(await redisClient.get(redisKeyGenerator(address, date)));
+	} else {
+		const result = await elaboratePolimiWebsite(address, date);
+
+		redisClient.setex(
+			redisKeyGenerator(address, date),
+			cacheTimeoutSeconds,
+			JSON.stringify(result)
+		);
+
+		res.send(result);
+	}
 });
 
 app.listen(process.env.PORT || 5000, () => {
