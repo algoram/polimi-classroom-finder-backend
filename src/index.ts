@@ -5,7 +5,8 @@ import cors from "cors";
 import Redis from "ioredis";
 const app = express();
 
-const cacheTimeoutSeconds = 900;
+const cacheTimeoutSeconds = 3 * 60 * 60;
+const cacheUpdateSeconds = 1 * 60 * 60;
 
 type ReturnObjectType = Classroom[];
 
@@ -124,18 +125,27 @@ const redisKeyGenerator = (address: string, date: string) =>
 app.get("/", async (req, res) => {
 	const date = req.query.date?.toString() ?? getTodayDate();
 	const address = req.query.address?.toString() ?? "MIA";
+	const redisKey = redisKeyGenerator(address, date);
 
-	if (await redisClient.exists(redisKeyGenerator(address, date))) {
+	if (await redisClient.exists(redisKey)) {
 		res.type("json");
-		res.send(await redisClient.get(redisKeyGenerator(address, date)));
+		res.send(await redisClient.get(redisKey));
+
+		redisClient.ttl(redisKey, async (_, ttl) => {
+			if (cacheTimeoutSeconds - ttl > cacheUpdateSeconds) {
+				const result = await elaboratePolimiWebsite(address, date);
+
+				redisClient.setex(
+					redisKey,
+					cacheTimeoutSeconds,
+					JSON.stringify(result)
+				);
+			}
+		});
 	} else {
 		const result = await elaboratePolimiWebsite(address, date);
 
-		redisClient.setex(
-			redisKeyGenerator(address, date),
-			cacheTimeoutSeconds,
-			JSON.stringify(result)
-		);
+		redisClient.setex(redisKey, cacheTimeoutSeconds, JSON.stringify(result));
 
 		res.send(result);
 	}

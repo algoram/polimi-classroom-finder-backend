@@ -18,7 +18,8 @@ const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const ioredis_1 = __importDefault(require("ioredis"));
 const app = express_1.default();
-const cacheTimeoutSeconds = 900;
+const cacheTimeoutSeconds = 3 * 60 * 60;
+const cacheUpdateSeconds = 1 * 60 * 60;
 const redisClient = new ioredis_1.default(process.env.REDIS_URL);
 app.use(cors_1.default());
 const getTodayDate = () => {
@@ -105,13 +106,20 @@ app.get("/", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a, _b, _c, _d;
     const date = (_b = (_a = req.query.date) === null || _a === void 0 ? void 0 : _a.toString()) !== null && _b !== void 0 ? _b : getTodayDate();
     const address = (_d = (_c = req.query.address) === null || _c === void 0 ? void 0 : _c.toString()) !== null && _d !== void 0 ? _d : "MIA";
-    if (yield redisClient.exists(redisKeyGenerator(address, date))) {
+    const redisKey = redisKeyGenerator(address, date);
+    if (yield redisClient.exists(redisKey)) {
         res.type("json");
-        res.send(yield redisClient.get(redisKeyGenerator(address, date)));
+        res.send(yield redisClient.get(redisKey));
+        redisClient.ttl(redisKey, (_, ttl) => __awaiter(void 0, void 0, void 0, function* () {
+            if (cacheTimeoutSeconds - ttl > cacheUpdateSeconds) {
+                const result = yield elaboratePolimiWebsite(address, date);
+                redisClient.setex(redisKey, cacheTimeoutSeconds, JSON.stringify(result));
+            }
+        }));
     }
     else {
         const result = yield elaboratePolimiWebsite(address, date);
-        redisClient.setex(redisKeyGenerator(address, date), cacheTimeoutSeconds, JSON.stringify(result));
+        redisClient.setex(redisKey, cacheTimeoutSeconds, JSON.stringify(result));
         res.send(result);
     }
 }));
