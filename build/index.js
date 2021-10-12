@@ -43,9 +43,10 @@ const elaboratePolimiWebsite = (address, date) => __awaiter(void 0, void 0, void
     console.log(url);
     const html = yield request_promise_1.default(url);
     const $ = cheerio_1.default.load(html);
-    const rows = $("tr.normalRow");
+    const timeRows = $("tr.normalRow");
+    const titleRows = $("td.innerEdificio");
     const result = [];
-    rows.each((i, tr) => {
+    timeRows.each((i, tr) => {
         if (i != 0 && i != 1) {
             const classroom = $(tr).children(".dove").text().trim();
             const freeHours = [];
@@ -83,10 +84,12 @@ const elaboratePolimiWebsite = (address, date) => __awaiter(void 0, void 0, void
                 }
             });
             freeHours.push(hours - 0.75);
+            //!!! very risky, if something goes wrong check HERE
             if (classroom.length > 0) {
                 result.push({
                     classroom: classroom,
                     hours: freeHours,
+                    location: $(titleRows[i]).text().trim().split(" - ")[1],
                 });
             }
         }

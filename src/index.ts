@@ -14,6 +14,7 @@ type Classroom = {
 	classroom: string;
 	hours: number[];
 	freeHours?: number;
+	location: string;
 };
 
 const redisClient = new Redis(process.env.REDIS_URL);
@@ -50,11 +51,12 @@ const elaboratePolimiWebsite = async (address: string, date: string) => {
 	const html = await rp(url);
 	const $ = cheerio.load(html);
 
-	const rows = $("tr.normalRow");
+	const timeRows = $("tr.normalRow");
+	const titleRows = $("td.innerEdificio");
 
 	const result: ReturnObjectType = [];
 
-	rows.each((i, tr) => {
+	timeRows.each((i, tr) => {
 		if (i != 0 && i != 1) {
 			const classroom = $(tr).children(".dove").text().trim();
 
@@ -95,10 +97,12 @@ const elaboratePolimiWebsite = async (address: string, date: string) => {
 
 			freeHours.push(hours - 0.75);
 
+			//!!! very risky, if something goes wrong check HERE
 			if (classroom.length > 0) {
 				result.push({
 					classroom: classroom,
 					hours: freeHours,
+					location: $(titleRows[i]).text().trim().split(" - ")[1],
 				});
 			}
 		}
