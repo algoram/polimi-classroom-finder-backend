@@ -43,7 +43,6 @@ const elaboratePolimiWebsite = (address, date) => __awaiter(void 0, void 0, void
     console.log(url);
     const html = yield request_promise_1.default(url);
     const $ = cheerio_1.default.load(html);
-    const timeRows = $("tr.normalRow");
     const result = [];
     const tableRows = $("table.BoxInfoCard table.scrollTable tr");
     let normRowsCounter = 0;

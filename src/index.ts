@@ -51,8 +51,6 @@ const elaboratePolimiWebsite = async (address: string, date: string) => {
 	const html = await rp(url);
 	const $ = cheerio.load(html);
 
-	const timeRows = $("tr.normalRow");
-
 	const result: ReturnObjectType = [];
 
 	const tableRows = $("table.BoxInfoCard table.scrollTable tr");
