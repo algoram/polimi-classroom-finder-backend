@@ -44,17 +44,29 @@ const elaboratePolimiWebsite = (address, date) => __awaiter(void 0, void 0, void
     const html = yield request_promise_1.default(url);
     const $ = cheerio_1.default.load(html);
     const timeRows = $("tr.normalRow");
-    const titleRows = $("td.innerEdificio");
     const result = [];
-    timeRows.each((i, tr) => {
-        if (i != 0 && i != 1) {
-            const classroom = $(tr).children(".dove").text().trim();
+    const tableRows = $("table.BoxInfoCard table.scrollTable tr");
+    let normRowsCounter = 0;
+    let actAddress;
+    //!!! very risky, if something goes wrong check HERE
+    tableRows.each((index, row) => {
+        if ($(row).children(".innerEdificio").length > 0) {
+            actAddress = $(row)
+                .children(".innerEdificio")
+                .text()
+                .trim()
+                .split(" - ")[1];
+            // normalRows contain a single class, if the address has not ben setted yet than the normal row contains nothing
+        }
+        else if (typeof actAddress != "undefined" &&
+            $(row).hasClass("normalRow")) {
+            const classroom = $(row).children(".dove").text().trim();
             const freeHours = [];
             let hours = -0.75;
             let free = true;
-            $(tr)
+            $(row)
                 .children()
-                .each((j, td) => {
+                .each((_, td) => {
                 var _a;
                 if ($(td).hasClass("slot")) {
                     if (typeof $(td).attr("colspan") != "undefined") {
@@ -84,13 +96,13 @@ const elaboratePolimiWebsite = (address, date) => __awaiter(void 0, void 0, void
                 }
             });
             freeHours.push(hours - 0.75);
-            //!!! very risky, if something goes wrong check HERE
             if (classroom.length > 0) {
                 result.push({
                     classroom: classroom,
                     hours: freeHours,
-                    location: $(titleRows[i]).text().trim().split(" - ")[1],
+                    location: actAddress,
                 });
+                normRowsCounter++;
             }
         }
     });
