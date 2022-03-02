@@ -13,7 +13,6 @@ type ReturnObjectType = Classroom[];
 type Classroom = {
 	classroom: string;
 	hours: number[];
-	freeHours?: number;
 	location?: string;
 };
 
@@ -26,6 +25,26 @@ const getTodayDate = () => {
 
 	return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
 };
+
+const compressTimetableArray = (timetable: number[]) => {
+	const res: number[] = [];
+	let status = 0;
+	let counter = 0;
+
+	for (const el of timetable) {
+		if (el === status) {
+			counter++;
+		} else {
+			res.push(counter);
+			counter = 1;
+			status = 1 - status;
+		}
+	}
+
+	res.push(counter);
+
+	return res;
+}
 
 const elaboratePolimiWebsite = async (address: string, date: string) => {
 	const getUrl = () => {
@@ -73,68 +92,100 @@ const elaboratePolimiWebsite = async (address: string, date: string) => {
 			typeof actAddress != "undefined" &&
 			$(row).hasClass("normalRow")
 		) {
-			const classroom = $(row).children(".dove").text().trim();
+			const date = $(row).children('.data').text().trim(); // saved for debug purposes
+			const where = $(row).children('.dove').text().trim(); // get the classroom name
 
-			const freeHours = [];
+			const timetable: number[] = []; // here we save 0 every free 15 minutes, otherwise 1, starting from 8:00 AM
 
-			let hours = -0.75;
-			let free = true;
+			$(row).children().each((_, td) => {
+				// ignore the first two cells, we already processed them
+				if ($(td).hasClass('data') || $(td).hasClass('dove')) {
+					return;
+				}
 
-			$(row)
-				.children()
-				.each((_, td) => {
-					if ($(td).hasClass("slot")) {
-						if (typeof $(td).attr("colspan") != "undefined") {
-							const colspan: number = parseInt($(td).attr("colspan") ?? "");
+				// free 15 minutes
+				if ($(td).hasClass('empty') || $(td).hasClass('empty_prima')) {
+					timetable.push(0);
+				} else if ($(td).hasClass('slot') && typeof $(td).attr('colspan') != 'undefined') {
+					const busyCells = parseInt($(td).attr('colspan') ?? '');
 
-							if (free) {
-								freeHours.push(hours);
-								hours = colspan / 4;
-							} else {
-								hours += colspan / 4;
-							}
-						} else {
-							throw "Colspan not found, wrong website format";
-						}
-
-						free = false;
-					} else {
-						if (free) {
-							hours += 0.25;
-						} else {
-							freeHours.push(hours);
-							hours = 0.25;
-						}
-
-						free = true;
+					// busy 15 minutes
+					for (let i = 0; i < busyCells; i++) {
+						timetable.push(1);
 					}
-				});
+				}
+			});
 
-			freeHours.push(hours - 0.75);
-
-			if (classroom.length > 0) {
+			if (where.length > 0) {
 				result.push({
-					classroom: classroom,
-					hours: freeHours,
+					classroom: where,
+					hours: compressTimetableArray(timetable),
 					location: actAddress,
 				});
-
-				normRowsCounter++;
 			}
+
+			// const classroom = $(row).children(".dove").text().trim();
+
+			// const freeHours = [];
+
+			// let hours = -0.75;
+			// let free = true;
+
+			// $(row)
+			// 	.children()
+			// 	.each((_, td) => {
+			// 		if ($(td).hasClass("slot")) {
+			// 			if (typeof $(td).attr("colspan") != "undefined") {
+			// 				const colspan: number = parseInt($(td).attr("colspan") ?? "");
+
+			// 				if (free) {
+			// 					freeHours.push(hours);
+			// 					hours = colspan / 4;
+			// 				} else {
+			// 					hours += colspan / 4;
+			// 				}
+			// 			} else {
+			// 				throw "Colspan not found, wrong website format";
+			// 			}
+
+			// 			free = false;
+			// 		} else {
+			// 			if (free) {
+			// 				hours += 0.25;
+			// 			} else {
+			// 				freeHours.push(hours);
+			// 				hours = 0.25;
+			// 			}
+
+			// 			free = true;
+			// 		}
+			// 	});
+
+			// freeHours.push(hours - 0.75);
+
+			// if (classroom.length > 0) {
+			// 	result.push({
+			// 		classroom: classroom,
+			// 		hours: freeHours,
+			// 		location: actAddress,
+			// 	});
+
+			// 	normRowsCounter++;
+			// }
 		}
 	});
 
-	result.forEach((val) => {
-		let freeHours = 0;
+	// result.forEach((val) => {
+	// 	let freeHours = 0;
 
-		for (let i = 0; i < val.hours.length; i += 2) {
-			freeHours += val.hours[i];
-		}
+	// 	for (let i = 0; i < val.hours.length; i += 2) {
+	// 		freeHours += val.hours[i];
+	// 	}
 
-		val.freeHours = freeHours;
-	});
+	// 	val.freeHours = freeHours;
+	// });
 
-	result.sort((a, b) => b.freeHours! - a.freeHours!);
+	// result.sort((a, b) => b.freeHours! - a.freeHours!);
 
 	return result;
 };
