@@ -1,4 +1,4 @@
-//import rp from "request-promise";
+import rp from "request-promise";
 import cheerio from "cheerio";
 import express from "express";
 import cors from "cors";
@@ -68,9 +68,9 @@ const elaboratePolimiWebsite = async (address: string, date: string) => {
 
 	console.log(url);
 
-	// const html = await rp(url);
-	const response = await fetch(url);
-	const html = await response.text();
+	const html = await rp(url);
+	// const response = await fetch(url);
+	// const html = await response.text();
 	const $ = cheerio.load(html);
 
 	const result: ReturnObjectType = [];
@@ -231,7 +231,7 @@ app.get("/", async (req, res) => {
 });
 
 app.get("/health", (req, res) => {
-	res.status(200).send("Ok");
+	res.sendStatus(200);
 });
 
 const port = process.env.PORT || 5000;
