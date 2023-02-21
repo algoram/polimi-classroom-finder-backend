@@ -230,6 +230,10 @@ app.get("/", async (req, res) => {
 	// }
 });
 
+app.get("/health", (req, res) => {
+	res.status(200).send("Ok");
+});
+
 const port = process.env.PORT || 5000;
 
 app.listen(port, () => {
