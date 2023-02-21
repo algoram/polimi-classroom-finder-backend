@@ -1,12 +1,13 @@
-import rp from "request-promise";
+//import rp from "request-promise";
 import cheerio from "cheerio";
 import express from "express";
 import cors from "cors";
-import Redis from "ioredis";
+// import { parse } from "node-html-parser";
+//import Redis from "ioredis";
 const app = express();
 
-const cacheTimeoutSeconds = 3 * 60 * 60;
-const cacheUpdateSeconds = 1 * 60 * 60;
+// const cacheTimeoutSeconds = 3 * 60 * 60;
+// const cacheUpdateSeconds = 1 * 60 * 60;
 
 type ReturnObjectType = Classroom[];
 
@@ -16,7 +17,7 @@ type Classroom = {
 	location?: string;
 };
 
-const redisClient = new Redis(process.env.REDIS_URL);
+// const redisClient = new Redis(process.env.REDIS_URL);
 
 app.use(cors());
 
@@ -44,7 +45,7 @@ const compressTimetableArray = (timetable: number[]) => {
 	res.push(counter);
 
 	return res;
-}
+};
 
 const elaboratePolimiWebsite = async (address: string, date: string) => {
 	const getUrl = () => {
@@ -67,7 +68,9 @@ const elaboratePolimiWebsite = async (address: string, date: string) => {
 
 	console.log(url);
 
-	const html = await rp(url);
+	// const html = await rp(url);
+	const response = await fetch(url);
+	const html = await response.text();
 	const $ = cheerio.load(html);
 
 	const result: ReturnObjectType = [];
@@ -92,29 +95,34 @@ const elaboratePolimiWebsite = async (address: string, date: string) => {
 			typeof actAddress != "undefined" &&
 			$(row).hasClass("normalRow")
 		) {
-			const date = $(row).children('.data').text().trim(); // saved for debug purposes
-			const where = $(row).children('.dove').text().trim(); // get the classroom name
+			const date = $(row).children(".data").text().trim(); // saved for debug purposes
+			const where = $(row).children(".dove").text().trim(); // get the classroom name
 
 			const timetable: number[] = []; // here we save 0 every free 15 minutes, otherwise 1, starting from 8:00 AM
 
-			$(row).children().each((_, td) => {
-				// ignore the first two cells, we already processed them
-				if ($(td).hasClass('data') || $(td).hasClass('dove')) {
-					return;
-				}
-
-				// free 15 minutes
-				if ($(td).hasClass('empty') || $(td).hasClass('empty_prima')) {
-					timetable.push(0);
-				} else if ($(td).hasClass('slot') && typeof $(td).attr('colspan') != 'undefined') {
-					const busyCells = parseInt($(td).attr('colspan') ?? '');
-
-					// busy 15 minutes
-					for (let i = 0; i < busyCells; i++) {
-						timetable.push(1);
+			$(row)
+				.children()
+				.each((_, td) => {
+					// ignore the first two cells, we already processed them
+					if ($(td).hasClass("data") || $(td).hasClass("dove")) {
+						return;
 					}
-				}
-			});
+
+					// free 15 minutes
+					if ($(td).hasClass("empty") || $(td).hasClass("empty_prima")) {
+						timetable.push(0);
+					} else if (
+						$(td).hasClass("slot") &&
+						typeof $(td).attr("colspan") != "undefined"
+					) {
+						const busyCells = parseInt($(td).attr("colspan") ?? "");
+
+						// busy 15 minutes
+						for (let i = 0; i < busyCells; i++) {
+							timetable.push(1);
+						}
+					}
+				});
 
 			if (where.length > 0) {
 				result.push({
@@ -196,34 +204,34 @@ const redisKeyGenerator = (address: string, date: string) =>
 app.get("/", async (req, res) => {
 	const date = req.query.date?.toString() ?? getTodayDate();
 	const address = req.query.address?.toString() ?? "MIA";
-	const redisKey = redisKeyGenerator(address, date);
+	// const redisKey = redisKeyGenerator(address, date);
 
-	if (await redisClient.exists(redisKey)) {
-		res.type("json");
-		res.send(await redisClient.get(redisKey));
+	// if (await redisClient.exists(redisKey)) {
+	// 	res.type("json");
+	// 	res.send(await redisClient.get(redisKey));
 
-		redisClient.ttl(redisKey, async (_, ttl) => {
-			if (cacheTimeoutSeconds - ttl > cacheUpdateSeconds) {
-				const result = await elaboratePolimiWebsite(address, date);
+	// 	redisClient.ttl(redisKey, async (_, ttl) => {
+	// 		if (cacheTimeoutSeconds - ttl > cacheUpdateSeconds) {
+	// 			const result = await elaboratePolimiWebsite(address, date);
 
-				redisClient.setex(
-					redisKey,
-					cacheTimeoutSeconds,
-					JSON.stringify(result)
-				);
-			}
-		});
-	} else {
-		const result = await elaboratePolimiWebsite(address, date);
+	// 			redisClient.setex(
+	// 				redisKey,
+	// 				cacheTimeoutSeconds,
+	// 				JSON.stringify(result)
+	// 			);
+	// 		}
+	// 	});
+	// } else {
+	const result = await elaboratePolimiWebsite(address, date);
 
-		redisClient.setex(redisKey, cacheTimeoutSeconds, JSON.stringify(result));
+	// redisClient.setex(redisKey, cacheTimeoutSeconds, JSON.stringify(result));
 
-		res.send(result);
-	}
+	res.send(result);
+	// }
 });
 
-app.listen(process.env.PORT || 5000, () => {
-	console.log(`Currently listening`);
-});
+const port = process.env.PORT || 5000;
 
-console.log("hey");
+app.listen(port, () => {
+	console.log(`Currently listening on port ${port}`);
+});
