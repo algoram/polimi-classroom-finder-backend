@@ -18,5 +18,8 @@
 	"scripts": {
 		"build": "tsc",
 		"start": "yarn build && node build/index.js"
+	},
+	"engines": {
+		"node": "19.x"
 	}
 }
